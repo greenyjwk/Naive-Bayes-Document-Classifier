@@ -1,6 +1,6 @@
 package com.company;
 
-
+import java.io.File;
 import java.util.HashMap;
 import java.util.HashSet;
 
@@ -10,7 +10,6 @@ import java.util.HashSet;
  * April 06
  */
 public class NBClassifier {
-
 
         private String[] trainingDocs;         //training data (1)
         private int[] trainingClasses;         //training class values (2)
@@ -27,6 +26,17 @@ public class NBClassifier {
          * @param trainDataFolder the training document folder
          */
         public NBClassifier(String trainDataFolder) {
+                numClasses = 2;
+
+
+                File directoryPath = new File(trainDataFolder);
+                File filesList[] = directoryPath.listFiles();
+                System.out.println(filesList);
+
+                for( File file : filesList) System.out.println(file);
+
+
+
 
 
         }
@@ -63,6 +73,12 @@ public class NBClassifier {
 
 
         public static void main(String[] args){
+
+                String trainingDataFolder = "data/train/neg";
+                NBClassifier classifier = new NBClassifier(trainingDataFolder);
+
+
+
 
         }
 }
