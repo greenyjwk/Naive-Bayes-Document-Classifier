@@ -19,7 +19,6 @@ public class NBClassifier {
     private HashMap<String, Double>[] condProb; //term conditional prob (7)
     private HashSet<String> vocabulary;    //entire vocabulary (8)
 
-
     /**
      * Build a Naive Bayes classifier using a training document set
      *
@@ -29,16 +28,18 @@ public class NBClassifier {
 
         preprocess(trainDataFolder);
 
+        //Create the condProb intance
         for (int i = 0; i < numClasses; i++) condProb[i] = new HashMap<String, Double>();
 
+        // Create ClassTokensCounts (Total number of tokens per class)
+        // Create classStrings (concatenated string for a given class)
         for (int i = 0; i < numClasses; i++) {
-//            String[] tokens = classStrings[i].split(" ");
             String[] tokens = classStrings[i].split("\\s+");
             classTokenCounts[i] = tokens.length;
             for (String token : tokens) {
                 vocabulary.add(token);
                 if (condProb[i].containsKey(token)) {
-                    double count = condProb[i].get(token);
+                    double count = condProb[i].get(token); //Create the Hash Table that has key as token and value as frequeny
                     condProb[i].put(token, count + 1);
                 } else condProb[i].put(token, 1.0);
             }
@@ -52,8 +53,8 @@ public class NBClassifier {
                 Map.Entry<String, Double> entry = iterator.next();
                 String token = entry.getKey();
                 Double count = entry.getValue();
-//                Double prob = (count + 1) / (classTokenCounts[i] + vSize); //denominator would be wrong
-                Double prob = (count + 1) / ( count + vSize); //
+//                Double prob = (count + 1) / (classTokenCounts[i] + vSize); // This is the original version -> denominator would be wrong
+                Double prob = (count + 1) / ( count + vSize);
                 condProb[i].put(token, prob);
             }
         }
@@ -67,9 +68,7 @@ public class NBClassifier {
         System.out.println("This is the number of classes " + numClasses);
         for (int i = 0; i < classTokenCounts.length; i++) System.out.println("This is total number of tokens per class " + classTokenCounts[i]);
         System.out.println("This is the entire number of words that appear " + vocabulary.size());
-//        System.out.println(condProb[0]);
     }
-
 
     /**
      * Load the training documents
@@ -119,11 +118,9 @@ public class NBClassifier {
                 String singleDoc = new String();
                 try (BufferedReader br = new BufferedReader(new FileReader(temp[i]))) {
                     String line;
-                    while ((line = br.readLine()) != null) {
-                        singleDoc += line;
-                    }
+                    while ((line = br.readLine()) != null) singleDoc += line;
                     trainingDocsTemp.add(singleDoc);
-                    classStrings[j] += (" " + singleDoc);
+                    classStrings[j] += (" " + singleDoc); // classStrings: concatenated string for a given class
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -144,7 +141,6 @@ public class NBClassifier {
     public int classify(String doc) {
         int label = 0;
         int vsize = vocabulary.size();
-
         double[] score = new double[numClasses];
 
         // prior probability
@@ -157,13 +153,10 @@ public class NBClassifier {
         for (int i = 0; i < numClasses; i++) {
             for (String token : tokens) {
                 if (condProb[i].containsKey(token)){
-//                    score[i] *= condProb[i].get(token);
                     score[i] *= Math.abs(Math.log10(condProb[i].get(token)));
-                }else{
-                    score[i] *= 1.0 / (classTokenCounts[i] + vsize);  //denominator would be wrong
-//                    score[i] *= 1.0 / ( condProb[i].get(token) + vsize);  //
-//                    continue;// Need to check
-//                    score[i] *= 1.0 / ( condProb2[i].get(token) + vsize);  //
+                }else{// This is the case that search term does not exist in the termlist
+                    score[i] *= 1.0 / (classTokenCounts[i] + vsize);  // denominator would be wrong
+//                    score[i] *= 1.0 / ( condProb[i].get(token) + vsize);
                 }
             }
         }
@@ -188,24 +181,30 @@ public class NBClassifier {
      * @return classification accuracy
      */
     public double classifyAll(String testDataFolder) {
-        double label=0;
+        double label;
 
         File directoryPath = new File(testDataFolder);
         File filesList[] = directoryPath.listFiles();
 
+        double total = 0 ;
+        double correct = 0 ;
+
+
+
+
+        filesList = directoryPath.listFiles(new FilenameFilter() {
+            @Override
+            public boolean accept(File dir, String name) {
+                return !name.equals(".DS_Store");
+            }
+        });
 
         for (int j = 0; j < filesList.length; j++) {
-
-            System.out.println("current directory is : " + filesList[j].toString());
-            if (filesList[j].toString().equals("data/test/.DS_Store")) continue;
-
-            File[] temp = filesList[j].listFiles();
-
-            for (int i = 0; i < temp.length; i++) {
-
+            File[] file = filesList[j].listFiles();
+            for (int i = 0; i < file.length; i++) {
                 // ********* Read single file *****
                 String singleDoc = new String();
-                try (BufferedReader br = new BufferedReader(new FileReader(temp[i]))) {
+                try (BufferedReader br = new BufferedReader(new FileReader(file[i]))) {
                     String line;
                     while ((line = br.readLine()) != null) {
                         singleDoc += line;
@@ -213,22 +212,59 @@ public class NBClassifier {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
+
+                total++;
                 label = classify(singleDoc);
-                System.out.println("final output is : " + label);
+                if(label == j) correct++;
+                System.out.println(correct);
+                System.out.println("j is : " + j);
+                System.out.println("final output is : " + label + "\n");
             }
         }
-        return 0;
+
+        double outcome = correct/total;
+        return outcome;
     }
 
 
     public static void main(String[] args) {
-
         String trainingDataFolder = "data/train";
         NBClassifier classifier = new NBClassifier(trainingDataFolder);
 
-        int s = classifier.classify("Hello world");
-        System.out.println(s);
+        System.out.println("Single Document Classification Test 1");
+        String testPath = "data/test/neg/cv904_25663.txt";
+        File directoryPath = new File(testPath);
 
-        classifier.classifyAll("data/test");
+        String cv904_25663 ="";
+        try (BufferedReader br = new BufferedReader(new FileReader(directoryPath))) {
+            String line;
+            while ((line = br.readLine()) != null) cv904_25663 += line;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        int doc1Result = classifier.classify(cv904_25663);
+        System.out.println(doc1Result);
+
+
+        System.out.println("\nSingle Document Classification Test 2");
+        String testPath2 = "data/test/neg/cv920_29423.txt";
+        File directoryPath2 = new File(testPath2);
+
+        String cv920_29423 ="";
+        try (BufferedReader br = new BufferedReader(new FileReader(directoryPath2))) {
+            String line;
+            while ((line = br.readLine()) != null) cv920_29423 += line;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        int doc2Result = classifier.classify(cv920_29423);
+        System.out.println(doc2Result);
+
+        System.out.println("\nAll Documents Classification Test");
+
+        double classificationAllOutcome = classifier.classifyAll("data/test");
+        System.out.println(classificationAllOutcome);
     }
 }
