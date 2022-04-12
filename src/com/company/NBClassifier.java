@@ -52,7 +52,8 @@ public class NBClassifier {
                 Map.Entry<String, Double> entry = iterator.next();
                 String token = entry.getKey();
                 Double count = entry.getValue();
-                Double prob = (count + 1) / (classTokenCounts[i] + vSize);
+//                Double prob = (count + 1) / (classTokenCounts[i] + vSize); //denominator would be wrong
+                Double prob = (count + 1) / ( count + vSize); //
                 condProb[i].put(token, prob);
             }
         }
@@ -64,13 +65,9 @@ public class NBClassifier {
         System.out.println("This is the number of strings in pos directory " + classStrings[1].length());
         System.out.println("This is trainingClasses " + trainingClasses.entrySet());
         System.out.println("This is the number of classes " + numClasses);
-
-        for (int i = 0; i < classTokenCounts.length; i++) {
-            System.out.println("This is total number of tokens per class " + classTokenCounts[i]);
-        }
-
+        for (int i = 0; i < classTokenCounts.length; i++) System.out.println("This is total number of tokens per class " + classTokenCounts[i]);
         System.out.println("This is the entire number of words that appear " + vocabulary.size());
-        System.out.println(condProb[0]);
+//        System.out.println(condProb[0]);
     }
 
 
@@ -109,7 +106,6 @@ public class NBClassifier {
             trainingClasses.put(subDirectoryTemp.get(i), i);
         }
 
-
         int docCount;
         ArrayList<String> trainingDocsTemp = new ArrayList<>();
         for (int j = 0; j < files.length; j++) {
@@ -137,7 +133,6 @@ public class NBClassifier {
         }
         trainingDocs = new String[trainingDocsTemp.size()];
         for (int i = 0; i < trainingDocsTemp.size(); i++) trainingDocs[i] = trainingDocsTemp.get(i);
-
     }
 
 
@@ -157,12 +152,19 @@ public class NBClassifier {
             score[i] = classDocCounts[i] * 1.0 / trainingDocs.length;
         }
 
-        String[] tokens = doc.split(" ");
+        String[] tokens = doc.split("\\s+");
 
         for (int i = 0; i < numClasses; i++) {
             for (String token : tokens) {
-                if (condProb[i].containsKey(token)) score[i] *= condProb[i].get(token);
-                else score[i] *= (1.0 / (classTokenCounts[i] + vsize));
+                if (condProb[i].containsKey(token)){
+//                    score[i] *= condProb[i].get(token);
+                    score[i] *= Math.abs(Math.log10(condProb[i].get(token)));
+                }else{
+                    score[i] *= 1.0 / (classTokenCounts[i] + vsize);  //denominator would be wrong
+//                    score[i] *= 1.0 / ( condProb[i].get(token) + vsize);  //
+//                    continue;// Need to check
+//                    score[i] *= 1.0 / ( condProb2[i].get(token) + vsize);  //
+                }
             }
         }
 
@@ -182,12 +184,39 @@ public class NBClassifier {
 
     /**
      * Classify a set of testing documents and report the accuracy
-     *
      * @param testDataFolder fold that contains the testing documents
      * @return classification accuracy
      */
     public double classifyAll(String testDataFolder) {
+        double label=0;
 
+        File directoryPath = new File(testDataFolder);
+        File filesList[] = directoryPath.listFiles();
+
+
+        for (int j = 0; j < filesList.length; j++) {
+
+            System.out.println("current directory is : " + filesList[j].toString());
+            if (filesList[j].toString().equals("data/test/.DS_Store")) continue;
+
+            File[] temp = filesList[j].listFiles();
+
+            for (int i = 0; i < temp.length; i++) {
+
+                // ********* Read single file *****
+                String singleDoc = new String();
+                try (BufferedReader br = new BufferedReader(new FileReader(temp[i]))) {
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        singleDoc += line;
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                label = classify(singleDoc);
+                System.out.println("final output is : " + label);
+            }
+        }
         return 0;
     }
 
@@ -197,10 +226,9 @@ public class NBClassifier {
         String trainingDataFolder = "data/train";
         NBClassifier classifier = new NBClassifier(trainingDataFolder);
 
-        System.out.println("hello world");
-
-        int s = classifier.classify("blithe shreds grant");
+        int s = classifier.classify("Hello world");
         System.out.println(s);
 
+        classifier.classifyAll("data/test");
     }
 }
